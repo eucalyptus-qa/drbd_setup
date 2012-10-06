@@ -12,12 +12,15 @@ class DRBDQAConfigurator(object):
         self.hosts = []
         self.ips = []
         self.block_device = '/dev/sdb1' #default
+	self.euca_home = '/'
 
     def get_walrii_ips(self, filepath):
         data = open(filepath).readlines()
         for line in data:
             if "WS" in line:
                 self.ips.append(line[:line.find("\t")])
+            if ("BZR" in line and self.euca_home == '/'):
+                self.euca_home = '/opt/eucalyptus'
            
     def get_hosts_from_ips(self):
         for ip in self.ips:
@@ -116,6 +119,16 @@ class DRBDQAConfigurator(object):
             cmd = ['ssh', 'root@%s' % ip, 'dmsetup ls | xargs -i dmsetup remove {}']
             print Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
 
+    def add_fstab_rule(self):
+        for ip in self.ips:
+            cmd = ['ssh', 'root@%s' % ip, 'echo "/dev/drbd1   ' + self.euca_home + '/var/lib/eucalyptus/bukkits     ext3    noauto,owner    0 0" >> /etc/fstab']
+            print Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
+
+    def add_udev_rule(self):
+        for ip in self.ips:
+            cmd = ['ssh', 'root@%s' % ip, 'ln -sf ' + self.euca_home + '/usr/share/eucalyptus/udev/65-drbd-owner.rules  /etc/udev/rules.d/65-drbd-owner.rules']
+            print Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
+
 #configure this thing
 drbdconfigurator = DRBDQAConfigurator()
 drbdconfigurator.get_walrii_ips("../input/2b_tested.lst")
@@ -124,6 +137,8 @@ drbdconfigurator.get_hosts_from_ips()
 
 #make sure module is installed
 drbdconfigurator.load_module()
+drbdconfigurator.add_fstab_rule()
+drbdconfigurator.add_udev_rule()
 drbdconfigurator.check_disk()
 drbdconfigurator.zero_dev()
 drbdconfigurator.make_part()
