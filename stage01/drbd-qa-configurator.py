@@ -19,8 +19,9 @@ class DRBDQAConfigurator(object):
         for line in data:
             if "WS" in line:
                 self.ips.append(line[:line.find("\t")])
-            if ("BZR" in line and self.euca_home == '/'):
-                self.euca_home = '/opt/eucalyptus'
+                if ("BZR" in line and self.euca_home == '/'):
+                    self.euca_home = '/opt/eucalyptus'
+        print 'euca home: ' + self.euca_home + '\n'
            
     def get_hosts_from_ips(self):
         for ip in self.ips:
