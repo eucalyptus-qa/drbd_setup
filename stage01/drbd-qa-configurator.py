@@ -12,16 +12,19 @@ class DRBDQAConfigurator(object):
         self.hosts = []
         self.ips = []
         self.block_device = '/dev/sdb1' #default
-	self.euca_home = '/'
+	self.euca_home = ''
+        self.install_from_packages = True
 
     def get_walrii_ips(self, filepath):
         data = open(filepath).readlines()
         for line in data:
             if "WS" in line:
                 self.ips.append(line[:line.find("\t")])
-                if ("BZR" in line and self.euca_home == '/'):
+                if ("BZR" in line and self.euca_home == ''):
                     self.euca_home = '/opt/eucalyptus'
-        print 'euca home: ' + self.euca_home + '\n'
+                    self.install_from_packages = False
+        print 'Eucalyptus is installed from packages (true/false): ' + str(self.install_from_packages) + '\n'
+        print 'Euca home (empty if installed from packages): ' + self.euca_home + '\n'
            
     def get_hosts_from_ips(self):
         for ip in self.ips:
@@ -122,13 +125,19 @@ class DRBDQAConfigurator(object):
 
     def add_fstab_rule(self):
         for ip in self.ips:
+            print 'Adding /etc/fstab rule for ' + ip + '\n'
             cmd = ['ssh', 'root@%s' % ip, 'echo "/dev/drbd1   ' + self.euca_home + '/var/lib/eucalyptus/bukkits     ext3    noauto,owner    0 0" >> /etc/fstab']
             print Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
 
     def add_udev_rule(self):
-        for ip in self.ips:
-            cmd = ['ssh', 'root@%s' % ip, 'ln -sf ' + self.euca_home + '/usr/share/eucalyptus/udev/65-drbd-owner.rules  /etc/udev/rules.d/65-drbd-owner.rules']
-            print Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
+        if self.install_from_packages:
+            print 'Packages add udev rule 65-drbd-owner.rules to the right location, no need to create symbolic links\n'          
+        else:
+            for ip in self.ips:
+                print 'Creating a symbolic link to udev rule 65-drbd-owner.rules on ' + ip + '\n'
+                cmd = ['ssh', 'root@%s' % ip, 'ln -sf ' + self.euca_home + '/usr/share/eucalyptus/udev/65-drbd-owner.rules  /etc/udev/rules.d/65-drbd-owner.rules']
+                print Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
+
 
 #configure this thing
 drbdconfigurator = DRBDQAConfigurator()
